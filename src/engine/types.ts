@@ -158,6 +158,9 @@ export interface EvaluationResult {
   campaignCluster: CampaignCluster | null;
   simhashHex: string;
   evidenceReasons: string[];
+  approvalReasons: string[];
+  flagReasons: string[];
+  reviewReasons: string[];
   evaluatedAt: string;
 }
 
