@@ -1,3 +1,4 @@
+
 # VouchMesh: Decentralized Contributor Trust Network
 
 > **Autonomous, privacy-preserving open-source PR triage and transitive trust network built on the Ghostty `VOUCHED.td` specification.**  
@@ -20,13 +21,20 @@ To ensure modularity and clear contribution separation across our 3 team members
 ## 🚀 Key Features
 
 1. **Ghostty `VOUCHED.td` Compatible**: Full parser and serializer supporting standard format (`github:handle` and `-github:handle # reason`).
-2. **Asymmetric Reputation Engine**: Reputation climbs slowly ($+0.04$ per verified good contribution) and slashes aggressively ($-0.22$ per bad vouch), ensuring vouch integrity.
+2. **Asymmetric Reputation Engine**: Reputation climbs slowly (+0.04 per verified good contribution) and slashes aggressively (-0.22 per bad vouch), ensuring vouch integrity.
 3. **100-Fake Account Rogue Attack Mitigation**:
-   - **24-Hour Vouch Budget Dilution**: Projects exceeding their daily budget have individual vouch weights diluted ($6 / 100 = 0.06\times$).
-   - **Burst Circuit Breaker**: Sudden mass-vouch spikes ($\ge 10$ fresh accounts in 24h) trigger immediate quarantine to Newcomer Review.
+   - **24-Hour Vouch Budget Dilution**: Projects exceeding their daily budget have individual vouch weights diluted (`6 / 100 = 0.06x`).
+   - **Burst Circuit Breaker**: Sudden mass-vouch spikes (≥ 10 fresh accounts in 24h) trigger immediate quarantine to Newcomer Review.
 4. **Privacy-Preserving SimHash Campaign Radar**: Strips PII and computes 64-bit Hamming distance to detect cross-repository spam waves and same-repo duplicate PRs.
-5. **Transitive Web-of-Trust (Dijkstra with Hop Decay)**: Hop-decayed trust ($0.65^{\text{hops}}$) with Sybil clique isolation ($0.00$ trust) and hostile damping ($0.15\times$).
+5. **Transitive Web-of-Trust (Dijkstra with Hop Decay)**: Hop-decayed trust (`0.65^hops`) with Sybil clique isolation (`0.00` trust) and hostile damping (`0.15x`).
 6. **Newcomer Fast-Track & Protection**: Genuine first-time contributors with clean diffs or unit tests are guaranteed fair review and never auto-blocked.
+
+---
+
+## 🧪 Prior Work & Test Data Disclosure
+
+- **Prior Work:** Extends Ghostty's `VOUCHED.td` manual vouch/denounce lists with decentralized weighted trust propagation, multi-project corroboration, asymmetric voucher credibility, Sybil/burst isolation, static diff inspection, and privacy-preserving SimHash campaign detection.
+- **Test Data:** No automated issues or comments were posted to any real GitHub repositories. All evaluations use Ghostty's public `VOUCHED.td` format alongside a synthetic 26-project network and labeled PR/Issue stream.
 
 ---
 
@@ -51,8 +59,8 @@ npm run dev
 
 | Metric | Result | Benchmark Target | Status |
 | :--- | :--- | :--- | :--- |
-| **Campaign Spam Recall** | **100%** (12/12 caught) | $\ge 90\%$ | Passed |
-| **Newcomer Inclusion** | **100%** (5/5 protected) | $\ge 95\%$ | Passed |
-| **False Positive Rate** | **0%** (0 false flags) | $\le 2\%$ | Passed |
-| **Rogue 100-Fake PRs Blocked** | **5/5 blocked from Vouched** | $100\%$ | Passed |
+| **Campaign Spam Recall** | **100%** (12/12 caught) | ≥ 90% | Passed |
+| **Newcomer & Fair Review Inclusion** | **100%** (4/4 newcomers + 1/1 falsely denounced) | ≥ 95% | Passed |
+| **False Positive Rate** | **0%** (0 false flags) | ≤ 2% | Passed |
+| **Rogue 100-Fake PRs Blocked** | **5/5 blocked from Vouched** | 100% | Passed |
 | **Sybil Clusters Neutralized** | **6 isolated** | 100% isolation | Passed |
