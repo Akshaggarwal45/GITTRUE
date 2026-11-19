@@ -3,6 +3,7 @@ import {
   Award,
   FileCode2,
   GitPullRequest,
+  Globe,
   Network,
   Plus,
   Radar,
@@ -13,6 +14,7 @@ import {
 import { AppealsAuditView } from './components/AppealsAuditView.tsx';
 import { CampaignRadarView } from './components/CampaignRadarView.tsx';
 import { PolicyLabView } from './components/PolicyLabView.tsx';
+import { RepoScanView } from './components/RepoScanView.tsx';
 import { ReputationView } from './components/ReputationView.tsx';
 import { SubmitPrModal } from './components/SubmitPrModal.tsx';
 import { TriageQueueView } from './components/TriageQueueView.tsx';
@@ -21,10 +23,19 @@ import { VouchedTdView } from './components/VouchedTdView.tsx';
 import type { ProjectPolicy, SubmissionKind } from './engine/types.ts';
 import { apiFetch, type NetworkSnapshot } from './types/api.ts';
 
-type NavTab = 'triage' | 'reputation' | 'graph' | 'campaigns' | 'vouched' | 'appeals' | 'policy';
+type NavTab =
+  | 'triage'
+  | 'scanner'
+  | 'reputation'
+  | 'graph'
+  | 'campaigns'
+  | 'vouched'
+  | 'appeals'
+  | 'policy';
 
 const NAV_ITEMS: { key: NavTab; label: string; Icon: typeof GitPullRequest }[] = [
   { key: 'triage', label: 'PR & Issue Triage', Icon: GitPullRequest },
+  { key: 'scanner', label: 'Live GitHub Scan', Icon: Globe },
   { key: 'reputation', label: 'Voucher Reputation', Icon: Award },
   { key: 'graph', label: 'Trust Graph', Icon: Network },
   { key: 'campaigns', label: 'Campaign Radar', Icon: Radar },
@@ -301,6 +312,9 @@ export default function App() {
                   onVouchAction={handleVouchAction}
                   onSubmitAppeal={handleSubmitAppeal}
                 />
+              )}
+              {activeTab === 'scanner' && (
+                <RepoScanView onVouchAction={handleVouchAction} />
               )}
               {activeTab === 'reputation' && (
                 <ReputationView
