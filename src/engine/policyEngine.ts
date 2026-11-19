@@ -108,10 +108,16 @@ export function evaluatePullRequestStream(
         trust.denounceWeightSum >= policy.denounceBlockThreshold);
 
     const evidenceReasons: string[] = [];
+    const approvalReasons: string[] = [];
+    const flagReasons: string[] = [];
+    const reviewReasons: string[] = [];
     let verdict: TrustVerdict = 'NEWCOMER_REVIEW';
 
     if (hasHighDiffRisk) {
       verdict = 'FLAGGED';
+      for (const f of findings.filter((item) => item.severity === 'high')) {
+        flagReasons.push(`${f.ruleId} (HIGH) in ${f.file}: ${f.explanation}`);
+      }
       evidenceReasons.push(
         `High-severity static finding: ${findings
           .filter((f) => f.severity === 'high')
@@ -123,21 +129,34 @@ export function evaluatePullRequestStream(
     if (isActiveCampaign && cluster) {
       verdict = 'FLAGGED';
       if (cluster.clusterType === 'same_repo_duplicate') {
-        evidenceReasons.push(
-          `Duplicate submission cluster ${cluster.clusterId} inside ${cluster.projectNames[0]} (${cluster.prIds.length} near-identical items within ${cluster.windowMinutes}m, ${cluster.similarityPercent}% SimHash match).`
-        );
+        const msg = `Duplicate submission cluster ${cluster.clusterId} inside ${cluster.projectNames[0]} (${cluster.prIds.length} near-identical items within ${cluster.windowMinutes}m, ${cluster.similarityPercent}% SimHash match).`;
+        flagReasons.push(msg);
+        evidenceReasons.push(msg);
       } else {
-        evidenceReasons.push(
-          `Matches cross-project spam wave ${cluster.clusterId} (${cluster.projectIds.length} projects within ${cluster.windowMinutes}m · ${cluster.youngAccountCount} fresh accounts · ${cluster.similarityPercent}% SimHash match).`
-        );
+        const msg = `Matches cross-project spam wave ${cluster.clusterId} (${cluster.projectIds.length} projects within ${cluster.windowMinutes}m · ${cluster.youngAccountCount} fresh accounts · ${cluster.similarityPercent}% SimHash match).`;
+        flagReasons.push(msg);
+        evidenceReasons.push(msg);
       }
     }
 
     if (hasCorroboratedDenouncement) {
       verdict = 'FLAGGED';
-      evidenceReasons.push(
-        `Denounced by ${trust.corroboratingDenounceProjects} trusted project(s) with effective weight ${trust.denounceWeightSum} (threshold ${policy.denounceBlockThreshold}).`
-      );
+      const msg = `Denounced by ${trust.corroboratingDenounceProjects} trusted project(s) with effective weight ${trust.denounceWeightSum} (block threshold ${policy.denounceBlockThreshold}).`;
+      flagReasons.push(msg);
+      evidenceReasons.push(msg);
+    }
+
+    for (const f of findings.filter((item) => item.severity === 'medium')) {
+      const msg = `${f.ruleId} (MEDIUM) in ${f.file}: ${f.explanation}`;
+      if (verdict === 'FLAGGED') {
+        flagReasons.push(msg);
+      } else {
+        reviewReasons.push(msg);
+      }
+    }
+
+    for (const s of positiveSignals) {
+      approvalReasons.push(`${s.signalId}: ${s.description}`);
     }
 
     if (verdict !== 'FLAGGED') {
@@ -149,44 +168,63 @@ export function evaluatePullRequestStream(
         verdict = 'VOUCHED';
         const topPath = trust.paths.find((p) => p.status === 'vouched' && p.decayedWeight > 0);
         if (topPath) {
-          evidenceReasons.push(
-            `Vouched via ${topPath.path.join(' -> ')} (credibility ${topPath.voucherCredibility.toFixed(
-              2
-            )}, dilution ${topPath.dilutionFactor}x, net weight ${topPath.decayedWeight}).`
-          );
+          const pathMsg = `Vouched via ${topPath.path.join(' -> ')} (credibility ${topPath.voucherCredibility.toFixed(
+            2
+          )}, dilution ${topPath.dilutionFactor}x, net weight ${topPath.decayedWeight}).`;
+          approvalReasons.unshift(pathMsg);
+          evidenceReasons.push(pathMsg);
         }
+        approvalReasons.push(
+          `Net trust score (+${trust.netTrustScore.toFixed(2)}) meets vouch threshold (${policy.vouchThreshold.toFixed(
+            2
+          )}) with zero static security or code-quality warnings.`
+        );
       } else {
         verdict = 'NEWCOMER_REVIEW';
         if (trust.burstVouchBlocked) {
-          evidenceReasons.push(
-            'Peer vouch blocked by Burst Circuit Breaker (sudden high-volume vouching of fresh accounts); routed to Newcomer Review instead of Vouched.'
-          );
+          const msg =
+            'Peer vouch blocked by Burst Circuit Breaker (sudden high-volume vouching of fresh accounts); routed to Newcomer Review instead of Vouched.';
+          reviewReasons.push(msg);
+          evidenceReasons.push(msg);
         }
         if (trust.freshAccountCapped) {
-          evidenceReasons.push(
-            `Fresh-account cap applied (<${policy.freshAccountAgeDays}d old, 0 prior PRs): requires 2+ independent sources or 1 merged PR before Vouched fast-track.`
-          );
+          const msg = `Fresh-account cap applied (<${policy.freshAccountAgeDays}d old, 0 prior PRs): requires 2+ independent sources or 1 merged PR before Vouched fast-track.`;
+          reviewReasons.push(msg);
+          evidenceReasons.push(msg);
         }
         if (trust.hostileDenouncementIgnored) {
-          evidenceReasons.push(
-            'Unilateral denouncement from anomalous/untrusted project was damped — contributor kept in fair Newcomer Review.'
-          );
+          const msg =
+            'Unilateral denouncement from anomalous/untrusted project was damped — contributor kept in fair Newcomer Review.';
+          reviewReasons.push(msg);
+          evidenceReasons.push(msg);
         }
         if (trust.sybilVouchIgnored) {
-          evidenceReasons.push(
-            'Inbound vouch from isolated Sybil ring ignored (zero seed trust path); routed to neutral Newcomer Review.'
-          );
+          const msg =
+            'Inbound vouch from isolated Sybil ring ignored (zero seed trust path); routed to neutral Newcomer Review.';
+          reviewReasons.push(msg);
+          evidenceReasons.push(msg);
         }
         if (positiveSignals.length > 0) {
+          const msg = `Not auto-vouched yet (net trust score ${trust.netTrustScore.toFixed(
+            2
+          )} < ${policy.vouchThreshold.toFixed(
+            2
+          )} threshold); routed to fair Newcomer Review with positive code signals (${positiveSignals
+            .map((s) => s.signalId)
+            .join(', ')}).`;
+          if (reviewReasons.length === 0) {
+            reviewReasons.push(msg);
+          }
           evidenceReasons.push(
             `No flags or campaign match; positive code signals detected (${positiveSignals
               .map((s) => s.signalId)
               .join(', ')}).`
           );
         } else if (evidenceReasons.length === 0) {
-          evidenceReasons.push(
-            'No prior vouches or denouncements in trusted network; given fair newcomer review without auto-blocking.'
-          );
+          const msg =
+            'No prior vouches or denouncements in trusted network; given fair newcomer review without auto-blocking.';
+          reviewReasons.push(msg);
+          evidenceReasons.push(msg);
         }
         if (hasMediumDiffRisk) {
           evidenceReasons.push(
@@ -211,6 +249,9 @@ export function evaluatePullRequestStream(
       campaignCluster: cluster,
       simhashHex: prSimhashes.get(pr.id) ?? formatSimHashHex(0n),
       evidenceReasons,
+      approvalReasons,
+      flagReasons,
+      reviewReasons,
       evaluatedAt: referenceNowIso,
     };
   });
