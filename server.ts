@@ -11,8 +11,11 @@ import {
   DEFAULT_REFERENCE_NOW,
   generateRogueMassVouchAttack,
 } from './src/engine/dataset.ts';
+import {
+  GitHubScanError,
+  scanPublicGitHubRepository,
+} from './src/engine/githubScanner.ts';
 import { evaluatePullRequestStream } from './src/engine/policyEngine.ts';
-import { GitHubScanError, scanPublicGitHubRepository } from './src/engine/githubScanner.ts';
 import type {
   AppealRecord,
   AuditLogEntry,
@@ -474,6 +477,40 @@ async function startServer() {
     });
 
     res.json(buildSnapshot());
+  });
+
+  app.post('/api/scan-repo', async (req, res) => {
+    const { repoUrl, limit, stateFilter } = (req.body ?? {}) as {
+      repoUrl?: string;
+      limit?: number;
+      stateFilter?: 'all' | 'open';
+    };
+
+    try {
+      const observerProj = state.projects.find((p) => p.id === state.observerProjectId);
+      const effectivePolicy: ProjectPolicy = {
+        ...state.policy,
+        ...(observerProj?.policy ?? {}),
+      };
+
+      const report = await scanPublicGitHubRepository({
+        repoUrl: repoUrl ?? '',
+        limit: typeof limit === 'number' ? limit : 10,
+        stateFilter: stateFilter === 'open' ? 'open' : 'all',
+        existingVouchEntries: state.vouchEntries,
+        policy: effectivePolicy,
+      });
+
+      res.json(report);
+    } catch (err) {
+      if (err instanceof GitHubScanError) {
+        res.status(err.statusCode).json({ error: err.message });
+        return;
+      }
+      res.status(500).json({
+        error: err instanceof Error ? err.message : 'Failed to scan GitHub repository.',
+      });
+    }
   });
 
   app.post('/api/reset', (_req, res) => {
