@@ -12,6 +12,7 @@ import {
   generateRogueMassVouchAttack,
 } from './src/engine/dataset.ts';
 import { evaluatePullRequestStream } from './src/engine/policyEngine.ts';
+import { GitHubScanError, scanPublicGitHubRepository } from './src/engine/githubScanner.ts';
 import type {
   AppealRecord,
   AuditLogEntry,
