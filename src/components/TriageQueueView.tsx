@@ -231,13 +231,14 @@ export function TriageQueueView({
                   <th className="py-2.5 px-4">Submission</th>
                   <th className="py-2.5 px-3">Contributor</th>
                   <th className="py-2.5 px-3 text-right">Trust</th>
-                  <th className="py-2.5 px-4">Verdict</th>
+                  <th className="py-2.5 px-3">Verdict</th>
+                  <th className="py-2.5 px-4">Primary Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredPrs.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-12 px-4 text-center text-slate-500">
+                    <td colSpan={5} className="py-12 px-4 text-center text-slate-500">
                       No pull requests or issues match the current filter.
                     </td>
                   </tr>
@@ -249,6 +250,12 @@ export function TriageQueueView({
                     const VerdictIcon = meta.Icon;
                     const proj = projectsById.get(pr.projectId);
                     const isSelected = activePr?.id === pr.id;
+                    const topReason =
+                      ev?.flagReasons?.[0] ??
+                      ev?.reviewReasons?.[0] ??
+                      ev?.approvalReasons?.[0] ??
+                      ev?.evidenceReasons?.[0] ??
+                      'Evaluated';
 
                     return (
                       <tr
@@ -296,13 +303,16 @@ export function TriageQueueView({
                             {(ev?.netTrustScore ?? 0).toFixed(2)}
                           </span>
                         </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        <td className="py-3 px-3 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium ${meta.bgClass} ${meta.textClass}`}
                           >
                             <VerdictIcon className="w-3.5 h-3.5 shrink-0" />
                             {meta.label}
                           </span>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-600 max-w-[200px] truncate">
+                          {topReason}
                         </td>
                       </tr>
                     );
@@ -362,16 +372,56 @@ export function TriageQueueView({
                 </div>
               </div>
 
+              {activeEval.flagReasons.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-red-700">
+                    Why Flagged / Risk Signals
+                  </h4>
+                  <ul className="space-y-1.5 text-xs text-slate-700">
+                    {activeEval.flagReasons.map((reason, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {activeEval.reviewReasons.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-amber-700">
+                    Why Held for Newcomer / Manual Review
+                  </h4>
+                  <ul className="space-y-1.5 text-xs text-slate-700">
+                    {activeEval.reviewReasons.map((reason, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-slate-700">Decision Evidence Trace</h4>
-                <ul className="space-y-1.5 text-xs text-slate-700">
-                  {activeEval.evidenceReasons.map((reason, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
-                      <span>{reason}</span>
-                    </li>
-                  ))}
-                </ul>
+                <h4 className="text-xs font-semibold text-emerald-700">
+                  Why Approved / Positive Trust Signals
+                </h4>
+                {activeEval.approvalReasons.length === 0 ? (
+                  <p className="text-xs text-slate-500">
+                    No qualifying peer vouch path or positive code-merit signal found yet.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5 text-xs text-slate-700">
+                    {activeEval.approvalReasons.map((reason, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               {activeEval.trustPaths.length > 0 && (
